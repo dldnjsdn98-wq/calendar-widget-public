@@ -113,7 +113,7 @@ namespace CalendarWidget
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         internal static extern bool IsWindowVisible(IntPtr handle);
     }
-    public sealed class Widget : IDisposable
+    public sealed partial class Widget : IDisposable
     {
         public readonly Window Window;
         public ICalendarSource Source;
@@ -217,6 +217,8 @@ namespace CalendarWidget
         private string currentReadScope;
         private CalendarSnapshot deferredSnapshot;
         private CalendarChangeSummary deferredChanges;
+        private CalendarChangeSummary pendingAlerts = new CalendarChangeSummary();
+        public CalendarChangePopup ActiveChangePopup { get; private set; }
         private readonly TextBlock lastSuccessText, changeSummary;
         private readonly Border changeBanner;
         private readonly Border updateBanner;
@@ -260,7 +262,8 @@ namespace CalendarWidget
             versionText.Text = "앱 버전 " + UpdateCore.VersionText + " · 업데이트 확인 전";
             Find<Button>("UpdateDismissButton").Click += delegate { if (availableUpdate != null) dismissedUpdateVersion = availableUpdate.Version; updateBanner.Visibility = Visibility.Collapsed; };
             Find<Button>("UpdateApplyButton").Click += async delegate { await ApplyAvailableUpdate(); };
-            Find<Button>("DismissChangeButton").Click += delegate { changeBanner.Visibility = Visibility.Collapsed; };
+            Find<Button>("DismissChangeButton").Click += delegate { pendingAlerts = new CalendarChangeSummary(); changeBanner.Visibility = Visibility.Collapsed; };
+            Find<Button>("OpenChangeDetailsButton").Click += delegate { OpenChangeDetails(); };
             var work = SystemParameters.WorkArea;
             Window.Width = Clamp(Configuration.Width, Window.MinWidth, work.Width);
             Window.Height = Clamp(Configuration.Height, Window.MinHeight, work.Height);
@@ -283,6 +286,7 @@ namespace CalendarWidget
                 if (button != null && button.Name == "DayButton" && day != null) { e.Handled = true; var anchor = DayAgendaPopup.AnchorPoint(button); SelectedDate = day.Date; displayedMonth = new DateTime(day.Date.Year, day.Date.Month, 1); Render(); OpenDayPopup(day.Date, anchor); return; }
                 var view = button == null ? null : button.DataContext as EventView;
                 if (button != null && button.Name == "EditStatusButton" && view != null && view.CanEdit) { e.Handled = true; OpenStatusEditor(view); }
+                if (button != null && button.Name == "SearchResultButton" && view != null) { e.Handled = true; OpenSearchResult(view, button); }
             }));
             Find<Button>("PreviousMonthButton").Click += delegate { displayedMonth = MonthCalendar.Move(displayedMonth, -1); SelectedDate = null; Render(); Find<ScrollViewer>("EventScroll").ScrollToTop(); };
             Find<Button>("NextMonthButton").Click += delegate { displayedMonth = MonthCalendar.Move(displayedMonth, 1); SelectedDate = null; Render(); Find<ScrollViewer>("EventScroll").ScrollToTop(); };
@@ -309,6 +313,7 @@ namespace CalendarWidget
                 Configuration.SelectedProfileId = selected == null ? "" : selected.Id;
                 Render(); Save();
             };
+            InitializeViewFeatures();
             Window.Closing += delegate { if (ActiveDayPopup != null && ActiveDayPopup.Window.IsVisible) ActiveDayPopup.Window.Close(); Configuration.Left = Window.Left; Configuration.Top = Window.Top; Configuration.Width = Window.Width; Configuration.Height = Window.Height; Save(); Dispose(); };
             if (!verification)
             {
@@ -320,6 +325,7 @@ namespace CalendarWidget
                     menu.Items.Add("종료", null, delegate { Window.Dispatcher.BeginInvoke(new Action(Window.Close)); });
                     tray.ContextMenuStrip = menu;
                     tray.DoubleClick += delegate { Window.Dispatcher.BeginInvoke(new Action(Reveal)); };
+                    tray.BalloonTipClicked += delegate { Window.Dispatcher.BeginInvoke(new Action(OpenChangeDetails)); };
                 }
                 catch { if (tray != null) tray.Dispose(); tray = null; }
             }
@@ -357,7 +363,21 @@ namespace CalendarWidget
                 if (ActiveDayPopup.Date == date.Date) { ActiveDayPopup.Window.Activate(); return; }
                 ActiveDayPopup.Window.Close();
             }
-            var views = eventList.Items.OfType<EventView>().ToList();
+            var visible = CalendarSelection.Visible(Snapshot, Configuration.VisibleCalendarKeys);
+            var selected = calendarSelect.SelectedItem as CalendarProfile;
+            var calendarId = selected == null || String.IsNullOrEmpty(selected.Id) || !visible.Calendars.Any(c => c.Id == selected.Id) ? null : selected.Id;
+            var views = CalendarRules.ProjectDate(visible, calendarId, date, Now);
+            foreach (var view in views) {
+                var profile = Snapshot.Calendars.First(c => c.Id == view.CalendarId);
+                List<string> chosen;
+                if (Configuration.VisibleFields.TryGetValue(profile.Id, out chosen))
+                    view.Fields = view.Fields.Where(f => profile.Fields.Any(def => def.Label == f.Label && chosen.Contains(def.Key))).ToList();
+                if (view.StatusContext != null) {
+                    var draft = StatusDrafts.Drafts.LastOrDefault(d => d.Key == view.StatusContext.CreateDraft().Key && !d.Superseded);
+                    view.PendingStatus = draft == null ? "" : draft.State == "complete" ? "저장·반영 확인됨" : draft.Message;
+                }
+                if (!String.IsNullOrEmpty(view.StatusConflict)) view.PendingStatus = (String.IsNullOrEmpty(view.PendingStatus) ? "" : view.PendingStatus + " | ") + view.StatusConflict;
+            }
             var popup = new DayAgendaPopup(Window, Root, date, views, OpenStatusEditor, OpenManualEventEditor);
             ActiveDayPopup = popup;
             popup.Window.Closed += delegate {
@@ -394,7 +414,8 @@ namespace CalendarWidget
             return activeStatusEditor != null && activeStatusEditor.Window.IsVisible ||
                 activeManualEditor != null && activeManualEditor.Window.IsVisible ||
                 activeSettings != null && activeSettings.Window.IsVisible ||
-                ActiveDayPopup != null && ActiveDayPopup.Window.IsVisible;
+                ActiveDayPopup != null && ActiveDayPopup.Window.IsVisible ||
+                ActiveChangePopup != null && ActiveChangePopup.Window.IsVisible;
         }
         public async Task CheckForUpdates()
         {
@@ -467,6 +488,21 @@ namespace CalendarWidget
             if (changeTracker.LastSuccessUtc.HasValue)
                 lastSuccessText.Text = "마지막 서버 확인: " + CalendarRules.InSeoul(changeTracker.LastSuccessUtc.Value).ToString("yyyy.MM.dd HH:mm") + " (한국 시간)";
         }
+        private void OpenChangeDetails()
+        {
+            if (ActiveChangePopup != null && ActiveChangePopup.Window.IsVisible) { ActiveChangePopup.Window.Activate(); return; }
+            if (pendingAlerts.Total == 0 || EditingWindowOpen()) return;
+            var entries = pendingAlerts.Entries.ToList();
+            var popup = new CalendarChangePopup(Window, entries);
+            ActiveChangePopup = popup;
+            popup.Window.Closed += delegate {
+                if (ActiveChangePopup == popup) ActiveChangePopup = null;
+                ApplyDeferredSnapshot();
+            };
+            pendingAlerts = new CalendarChangeSummary();
+            changeBanner.Visibility = Visibility.Collapsed;
+            Reveal(); popup.Window.Show();
+        }
         private void ShowChanges(CalendarChangeSummary changes)
         {
             DateTimeOffset pause;
@@ -474,10 +510,13 @@ namespace CalendarWidget
             bool enabled = Configuration.ChangeAlertsEnabled && !paused;
             if (!enabled) return;
             if (changes.Total > 0) {
-                changeSummary.Text = changes.Text;
+                pendingAlerts.Append(changes);
+                changeSummary.Text = pendingAlerts.Text;
+                Find<Button>("OpenChangeDetailsButton").Visibility = Visibility.Visible;
                 changeBanner.Visibility = Visibility.Visible;
                 if (tray != null) try { tray.ShowBalloonTip(4000, "캘린더 변경", changes.Text, Forms.ToolTipIcon.Info); } catch { }
             } else if (changes.Conflicts > 0 && lastConflictCount != changes.Conflicts) {
+                Find<Button>("OpenChangeDetailsButton").Visibility = pendingAlerts.Total > 0 ? Visibility.Visible : Visibility.Collapsed;
                 changeSummary.Text = "Google 상태와 이 PC의 Excel 값이 다른 일정 " + changes.Conflicts + "건 · 자동 덮어쓰기 없음";
                 changeBanner.Visibility = Visibility.Visible;
             }
@@ -496,7 +535,7 @@ namespace CalendarWidget
         {
             var changes = changeTracker.Accept(snapshot, Now);
             pollBackoff.Succeeded(Now);
-            if (EditingWindowOpen()) { deferredSnapshot = snapshot; deferredChanges = changes; UpdateLastSuccess(); }
+            if (EditingWindowOpen()) { deferredSnapshot = snapshot; if (deferredChanges == null) deferredChanges = new CalendarChangeSummary(); deferredChanges.Append(changes); UpdateLastSuccess(); }
             else { DisplayConnected(snapshot); UpdateLastSuccess(); ShowChanges(changes); }
         }
         public Task RefreshSource()
@@ -593,9 +632,12 @@ namespace CalendarWidget
             string id = selected == null ? "" : selected.Id;
             string calendarId = String.IsNullOrEmpty(id) || !visible.Calendars.Any(c => c.Id == id) ? null : id;
             monthTitle.Text = displayedMonth.ToString("yyyy년 M월", CultureInfo.GetCultureInfo("ko-KR"));
-            monthDays.ItemsSource = MonthCalendar.Build(visible, calendarId, displayedMonth, seoul.Date, SelectedDate, ThemeManager.IsDark(Configuration));
+            var days = MonthCalendar.Build(visible, calendarId, displayedMonth, seoul.Date, SelectedDate, ThemeManager.IsDark(Configuration));
+            foreach (var day in days) day.DayHeight = Math.Max(40, Configuration.DisplayFontSize * 3.1) + (Configuration.ViewDensity == "compact" ? 0 : 12);
+            monthDays.ItemsSource = days;
             dayHeading.Text = SelectedDate.HasValue ? SelectedDate.Value.ToString("M월 d일 (ddd) 일정", CultureInfo.GetCultureInfo("ko-KR")) : "다가오는 일정";
-            var views = SelectedDate.HasValue ? CalendarRules.ProjectDate(visible, calendarId, SelectedDate.Value, Now) : CalendarRules.Project(visible, calendarId, Now);
+            bool searching = !String.IsNullOrWhiteSpace(Configuration.SearchText) || Configuration.QaFilter != "all";
+            var views = searching ? CalendarRules.Project(visible, calendarId, Now) : SelectedDate.HasValue ? CalendarRules.ProjectDate(visible, calendarId, SelectedDate.Value, Now) : CalendarRules.Project(visible, calendarId, Now);
             foreach (var view in views)
             {
                 var profile = Snapshot.Calendars.First(c => view.CalendarId == c.Id);
@@ -605,9 +647,14 @@ namespace CalendarWidget
                 if (view.StatusContext != null) { var draft = StatusDrafts.Drafts.LastOrDefault(d => d.Key == view.StatusContext.CreateDraft().Key && !d.Superseded); view.PendingStatus = draft == null ? "" : draft.State == "complete" ? "양쪽 저장 확인됨" : draft.Message; }
                 if (!String.IsNullOrEmpty(view.StatusConflict)) view.PendingStatus = (String.IsNullOrEmpty(view.PendingStatus) ? "" : view.PendingStatus + " | ") + view.StatusConflict;
             }
+            if (searching) views = FilterViews(views);
+            Find<StackPanel>("CalendarArea").Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
+            Find<StackPanel>("DetailHost").Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
+            if (searching) dayHeading.Text = "검색 결과 · " + views.Count + "건";
             eventList.ItemsSource = views;
             countText.Text = CalendarRules.Cutoff(Now).ToString("yyyy.MM.dd") + " 이후 · " + views.Count + "개 일정 · 종료일 미만";
             emptyPanel.Visibility = views.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateViewSummary();
             if (SelectedDate.HasValue) countText.Text = SelectedDate.Value.ToString("yyyy.MM.dd") + " · " + views.Count + "개 일정";
             emptyText.Text = Snapshot.Mode == "google-loading" ? "저장된 연결 일정이 없습니다. 연결 캘린더를 불러오고 있습니다." : Snapshot.Mode == "sample" || Snapshot.Mode == "synthetic" ? "오늘 이후 일정이 없습니다. 샘플 일정은 2026년 10월 예시입니다." : "오늘 이후 표시할 일정이 없습니다.";
             if (failed) statusText.Text = "갱신 실패 · 이전 표시 유지 (최신 아님)";

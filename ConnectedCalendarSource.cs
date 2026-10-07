@@ -53,7 +53,7 @@ namespace CalendarWidget
         }
         public static CalendarSnapshot Project(WorkbookEvents workbook, SyncRepository repo, string scope, string name, string color, List<RemoteEvent> remote, DateTimeOffset now)
         { return Project(workbook, repo, scope, name, color, remote, now, null, null, null); }
-        public static CalendarSnapshot Project(WorkbookEvents workbook, SyncRepository repo, string scope, string name, string color, List<RemoteEvent> remote, DateTimeOffset now, string account, string calendar, string email, bool includeUnlinked = true)
+        public static CalendarSnapshot Project(WorkbookEvents workbook, SyncRepository repo, string scope, string name, string color, List<RemoteEvent> remote, DateTimeOffset now, string account, string calendar, string email, bool includeUnlinked = true, bool calendarWritable = true)
         {
             var snapshot = new CalendarSnapshot { SchemaVersion = 1, Mode = "google", Scope = scope, TimeZone = "Asia/Seoul", ObservedAt = now.ToString("o"),
                 Warnings = workbook.Warnings, Calendars = new List<CalendarProfile> { Profile(name, color) }, Events = new List<CalendarEvent>() };
@@ -80,8 +80,13 @@ namespace CalendarWidget
                         if (differing) statusConflict = "Google 상태와 이 PC의 Excel 값이 다릅니다. 자동으로 덮어쓰지 않았습니다.";
                     }
                 }
+                var editContext = matches && source.StatusBinding != null && account != null ? new StatusEditContext { Scope = scope, AccountId = account, CalendarId = calendar, GoogleEventId = item.Id, GoogleVersion = item.ETag, Binding = source.StatusBinding, ReadOnly = !calendarWritable || differing || !String.IsNullOrEmpty(remoteIssue) } : null;
+                // A new native Google event on an Excel-linked calendar has no source-row mapping.
+                // Give it a Google-only editor; mapped or ambiguous workbook rows keep their existing guard.
+                if (editContext == null && mapping == null && source == null && account != null && calendar != null)
+                    editContext = GoogleOnlyStatus.Context(account, calendar, item, calendarWritable);
                 snapshot.Events.Add(new CalendarEvent { Id = account == null ? item.Id : profile.Id + ":" + item.Id, CalendarId = profile.Id, Title = item.Summary, AllDay = item.AllDay,
-                    StatusContext = matches && source.StatusBinding != null && account != null ? new StatusEditContext { Scope = scope, AccountId = account, CalendarId = calendar, GoogleEventId = item.Id, GoogleVersion = item.ETag, Binding = source.StatusBinding, ReadOnly = differing || !String.IsNullOrEmpty(remoteIssue) } : null,
+                    StatusContext = editContext,
                     Origin = source == null ? "google-direct" : "excel",
                     Start = item.AllDay ? item.Start.ToString("yyyy-MM-dd") : item.Start.ToString("o"), End = item.AllDay ? item.End.ToString("yyyy-MM-dd") : item.End.ToString("o"), Fields = fields,
                     RemoteStatus = remoteStatus, RemoteStatusIssue = remoteIssue, StatusConflict = statusConflict });

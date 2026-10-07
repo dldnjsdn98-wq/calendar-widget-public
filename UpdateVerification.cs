@@ -28,7 +28,7 @@ namespace CalendarWidget
             release.Sha256 = UpdateCore.HashFile(zip);
             File.WriteAllText(Path.Combine(feed, "release.json"), JsonData.Serialize(release));
             var observed = Task.Run(() => UpdateCore.Check(feed, CancellationToken.None)).Result;
-            check("update_release_version_is_separate_from_git_commit", observed.Version == "1.1.0" && !UpdateCore.IsNewer(observed));
+            check("update_release_version_is_separate_from_git_commit", observed.Version == UpdateCore.VersionText && !UpdateCore.IsNewer(observed));
             check("update_manifest_rejects_traversal_and_untrusted_hash", !UpdateCore.Valid(new UpdateRelease {
                 Application = "CalendarWidget", Version = "1.1.1", Package = "../evil.zip", Sha256 = release.Sha256 }) &&
                 !UpdateCore.Valid(new UpdateRelease { Application = "CalendarWidget", Version = "1.1.1", Package = "CalendarWidget-v1.1.1.zip", Sha256 = "x" }));
@@ -37,7 +37,7 @@ namespace CalendarWidget
             catch (InvalidDataException) { rejectedTokenUrl = true; }
             check("update_feed_rejects_embedded_token_url", rejectedTokenUrl);
             check("update_detects_later_release", UpdateCore.IsNewer(new UpdateRelease { Application = "CalendarWidget",
-                Version = "1.1.1", Package = "CalendarWidget-v1.1.1.zip", Sha256 = release.Sha256 }));
+                Version = "1.1.3", Package = "CalendarWidget-v1.1.3.zip", Sha256 = release.Sha256 }));
             string installed = Folder(output, "update-install");
             foreach (var name in UpdateCore.RuntimeFiles) File.WriteAllText(Path.Combine(installed, name), "old:" + name);
             File.WriteAllText(Path.Combine(installed, "settings.json"), "private-settings-sentinel");
@@ -78,11 +78,11 @@ namespace CalendarWidget
         }
         public static void RunUi(Widget widget, string output, Action<string, bool> check, Action<Window, string, double> capture)
         {
-            var release = new UpdateRelease { Application = "CalendarWidget", Version = "1.1.1",
-                Package = "CalendarWidget-v1.1.1.zip", Sha256 = new string('a', 64) };
+            var release = new UpdateRelease { Application = "CalendarWidget", Version = "1.1.3",
+                Package = "CalendarWidget-v1.1.3.zip", Sha256 = new string('a', 64) };
             widget.ShowSyntheticUpdate(release);
             check("update_ui_shows_version_and_apply_button", widget.Find<Border>("UpdateBanner").Visibility == Visibility.Visible &&
-                widget.Find<TextBlock>("UpdateSummary").Text.Contains("1.1.1") && widget.Find<Button>("UpdateApplyButton").IsEnabled);
+                widget.Find<TextBlock>("UpdateSummary").Text.Contains("1.1.3") && widget.Find<Button>("UpdateApplyButton").IsEnabled);
             capture(widget.Window, Path.Combine(output, "update-available-100.png"), 96);
             widget.Find<Button>("UpdateDismissButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var originalFeed = widget.Configuration.ReleaseFeed;

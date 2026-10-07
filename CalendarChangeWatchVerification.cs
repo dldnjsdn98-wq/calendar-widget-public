@@ -27,10 +27,19 @@ namespace CalendarWidget
             var now = DateTimeOffset.Parse("2026-10-06T10:00:00+09:00");
             var first = Event("one", "Synthetic item", now.AddDays(1));
             var clientA = new CalendarChangeTracker(); var clientB = new CalendarChangeTracker();
-            check("watch_two_clients_first_read_is_silent", clientA.Accept(Snapshot(first), now).Total == 0 && clientB.Accept(Snapshot(Event("one", "Synthetic item", now.AddDays(1))), now).Total == 0);
+            var firstA = clientA.Accept(Snapshot(first), now);
+            var firstB = clientB.Accept(Snapshot(Event("one", "Synthetic item", now.AddDays(1))), now);
+            check("watch_two_clients_first_read_is_silent", firstA.Total == 0 && firstB.Total == 0 && firstA.Entries.Count == 0 && firstB.Entries.Count == 0);
             var remoteStatus = GoogleOnlyStatus.Keys.ToDictionary(k => k, k => k == "setup" ? "remote complete" : "");
             var changed = Event("one", "Synthetic item", now.AddDays(1), remoteStatus);
-            check("watch_second_client_detects_remote_status_once", clientB.Accept(Snapshot(changed), now.AddMinutes(5)).Updated == 1 &&
+            var statusChange = clientB.Accept(Snapshot(changed), now.AddMinutes(5));
+            check("watch_detail_has_calendar_event_before_after_and_time", statusChange.Entries.Count == 1 && statusChange.Entries[0].CalendarName == "Synthetic shared calendar" &&
+                statusChange.Entries[0].EventName == "Synthetic item" && statusChange.Entries[0].DetectedAt == now.AddMinutes(5) &&
+                statusChange.Entries[0].Fields.Any(f => f.Label == "세팅" && f.Before == "확인 불가" && f.After == "remote complete"));
+            remoteStatus["setup"] = "mutated after detection";
+            check("watch_detail_values_are_snapshot_copies", statusChange.Entries[0].Fields.Any(f => f.Label == "세팅" && f.After == "remote complete"));
+            remoteStatus["setup"] = "remote complete";
+            check("watch_second_client_detects_remote_status_once", statusChange.Updated == 1 &&
                 clientB.Accept(Snapshot(Event("one", "Synthetic item", now.AddDays(1), new Dictionary<string, string>(remoteStatus))), now.AddMinutes(10)).Total == 0);
             clientA.Suppress(first.Id, now.AddMinutes(4));
             check("watch_local_write_suppressed_once", clientA.Accept(Snapshot(Event("one", "Synthetic item", now.AddDays(1), remoteStatus)), now.AddMinutes(5)).Total == 0);
@@ -38,8 +47,19 @@ namespace CalendarWidget
             var added = Event("two", "Synthetic new item", now.AddDays(2));
             var addRemove = clientB.Accept(Snapshot(added), now.AddMinutes(15));
             check("watch_add_and_cancel_counts_future_events", addRemove.Added == 1 && addRemove.Removed == 1);
+            check("watch_add_and_cancel_have_before_after_rows", addRemove.Entries.Count == 2 &&
+                addRemove.Entries.Any(e => e.Kind == "추가" && e.EventName == "Synthetic new item" && e.Fields.Any(f => f.Label == "일정 이름" && f.Before == "—" && f.After == "Synthetic new item")) &&
+                addRemove.Entries.Any(e => e.Kind == "취소" && e.EventName == "Synthetic item" && e.Fields.Any(f => f.Label == "일정 이름" && f.Before == "Synthetic item" && f.After == "—")));
+            var duplicate = CalendarChangeDetail.Create(new CalendarProfile { Id = "second", Name = "Synthetic shared calendar", AccountName = "second@example.invalid" }, null, added, now, true);
+            check("watch_same_name_calendar_uses_account_label", duplicate.CalendarName.Contains("second@example.invalid"));
+            var allOld = Event("all", "Synthetic fields", now.AddDays(1), GoogleOnlyStatus.Keys.ToDictionary(k => k, k => "old " + k));
+            var allNew = Event("all", "Synthetic fields", now.AddDays(1).AddHours(2), GoogleOnlyStatus.Keys.ToDictionary(k => k, k => "new " + k));
+            var allDetail = CalendarChangeDetail.Create(Snapshot(allNew).Calendars[0], allOld, allNew, now, false);
+            check("watch_all_five_status_cells_and_time_show_before_after", allDetail.Fields.Count(f => new[] { "세팅", "확인 · 알파", "알파와 테스터 · 테스터", "확인 · 리얼", "리얼과 테스터 · 테스터" }.Contains(f.Label) && f.Before.StartsWith("old ") && f.After.StartsWith("new ")) == 5 &&
+                allDetail.Fields.Any(f => f.Label == "시작" && f.Before.Contains("한국 시간") && f.After.Contains("한국 시간")));
             var failed = Snapshot(); failed.Calendars[0].ReadSucceeded = false;
-            check("watch_partial_calendar_failure_does_not_claim_cancellations", clientB.Accept(failed, now.AddMinutes(20)).Total == 0 && clientB.Accept(Snapshot(Event("two", "Synthetic new item", now.AddDays(2))), now.AddMinutes(25)).Total == 0);
+            var partial = clientB.Accept(failed, now.AddMinutes(20));
+            check("watch_partial_calendar_failure_does_not_claim_cancellations", partial.Total == 0 && partial.Entries.Count == 0 && clientB.Accept(Snapshot(Event("two", "Synthetic new item", now.AddDays(2))), now.AddMinutes(25)).Total == 0);
             var backoff = new CalendarPollBackoff(); backoff.Failed(now);
             check("watch_backoff_starts_at_five_minutes", !backoff.Ready(now.AddMinutes(4)) && backoff.Ready(now.AddMinutes(5)));
             backoff.Failed(now.AddMinutes(5));
@@ -112,6 +132,25 @@ namespace CalendarWidget
             check("watch_deferred_change_applies_after_popup_close", widget.ActiveDayPopup == null && widget.Snapshot.Events[0].Title == "Synthetic changed" && widget.Find<Border>("ChangeBanner").Visibility == Visibility.Visible);
             check("watch_notification_summary_omits_private_title", widget.Find<TextBlock>("ChangeSummary").Text.Contains("수정 1") && !widget.Find<TextBlock>("ChangeSummary").Text.Contains("Synthetic changed"));
             capture(widget.Window, Path.Combine(output, "watch-change-banner-100.png"), 96);
+            widget.Find<Button>("OpenChangeDetailsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var detailPopup = widget.ActiveChangePopup;
+            check("watch_alert_click_opens_change_details", detailPopup != null && detailPopup.Window.IsVisible && detailPopup.ChangeList.Items.Count == 1 &&
+                detailPopup.DetailHeading.Text.Contains("Synthetic changed") && detailPopup.DetailRows.Children.Count > 0 &&
+                detailPopup.Metadata.Text.Contains("확인 불가") && detailPopup.Metadata.Text.Contains("감지 시각"));
+            capture(detailPopup.Window, Path.Combine(output, "watch-change-details-100.png"), 96);
+            widget.AcceptConnectedSnapshot(Snapshot(Event("ui-one", "Synthetic changed", start)));
+            check("watch_change_popup_defers_snapshot", detailPopup.Window.IsVisible && widget.ActiveChangePopup == detailPopup);
+            detailPopup.Window.Close();
+            check("watch_change_popup_closes_and_applies_deferred", widget.ActiveChangePopup == null && widget.Snapshot.Events[0].Title == "Synthetic changed");
+            var statusAfter = Event("ui-one", "Synthetic first", start, new Dictionary<string, string> { { "setup", "ready" }, { "alphaCheck", "reviewed" } });
+            var statusEntry = CalendarChangeDetail.Create(Snapshot(first).Calendars[0], first, statusAfter, now, false);
+            var removalEntry = CalendarChangeDetail.Create(Snapshot(first).Calendars[0], first, null, now, false);
+            var fieldPopup = new CalendarChangePopup(widget.Window, new[] { statusEntry, removalEntry }); fieldPopup.Window.Show();
+            check("watch_status_change_popup_renders_before_after", fieldPopup.DetailRows.Children.OfType<TextBlock>().Any(t => t.Text.Contains("세팅") && t.Text.Contains("ready")));
+            capture(fieldPopup.Window, Path.Combine(output, "watch-status-details-150.png"), 144);
+            fieldPopup.ChangeList.SelectedIndex = 1;
+            check("watch_removed_item_does_not_claim_proven_cancellation", fieldPopup.Note.Text.Contains("구별할 수 없습니다") && fieldPopup.DetailHeading.Text.Contains("취소"));
+            fieldPopup.Window.Close();
             widget.Find<Button>("DismissChangeButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             widget.Configuration.ChangeAlertsEnabled = false;
             widget.AcceptConnectedSnapshot(Snapshot(Event("ui-one", "Synthetic changed again", start)));

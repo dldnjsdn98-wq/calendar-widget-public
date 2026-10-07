@@ -40,6 +40,17 @@ namespace CalendarWidget
             var qaProjection = ConnectedCalendarSource.Project(qaBook, legacyRepo, "current-scope", "Synthetic", "#b99aff", new List<RemoteEvent> { legacyEvent, legacyUnbound }, now, "subject", "calendar", "one@example.invalid");
             check("legacy_document_mapping_rejoins_only_unique_alias_and_same_remote_hash", qaProjection.Events[0].StatusContext != null && qaProjection.Events[0].Fields["alphaTester"] == "alpha value" && qaProjection.Events[0].StatusContext.Binding.DocumentId == "current-document");
             check("legacy_unbound_source_stays_visible_without_status_editor", qaProjection.Events[1].StatusContext == null && qaProjection.Events[1].Fields["setup"] == "unlinked");
+            var newNative = new RemoteEvent { Id = "synthetic-new-native", Summary = "Synthetic new event", Start = now.AddHours(2), End = now.AddHours(3), ETag = "native-v1" };
+            var writableProjection = ConnectedCalendarSource.Project(qaBook, legacyRepo, "current-scope", "Synthetic", "#b99aff", new List<RemoteEvent> { newNative }, now, "subject", "calendar", "one@example.invalid");
+            var writableNative = writableProjection.Events.Single();
+            check("new_native_event_on_excel_calendar_gets_google_only_status_editor", writableNative.Origin == "google-direct" && writableNative.StatusContext != null &&
+                writableNative.StatusContext.GoogleOnly && !writableNative.StatusContext.ReadOnly && writableNative.StatusContext.AccountId == "subject" &&
+                writableNative.StatusContext.CalendarId == "calendar" && writableNative.StatusContext.GoogleEventId == newNative.Id &&
+                CalendarRules.Project(writableProjection, null, now).Single().CanEdit);
+            var readerProjection = ConnectedCalendarSource.Project(qaBook, legacyRepo, "current-scope", "Synthetic", "#b99aff", new List<RemoteEvent> { newNative }, now,
+                "subject", "calendar", "one@example.invalid", true, false);
+            check("new_native_event_reader_role_does_not_gain_edit_permission", readerProjection.Events.Single().StatusContext.ReadOnly &&
+                !CalendarRules.Project(readerProjection, null, now).Single().CanEdit);
             legacyEvent.Summary = "changed by another client";
             check("legacy_qa_rejects_changed_remote_hash", ConnectedCalendarSource.Project(qaBook, legacyRepo, "current-scope", "Synthetic", "#b99aff", new List<RemoteEvent> { legacyEvent }, now, "subject", "calendar", "one@example.invalid").Events[0].StatusContext == null);
             var config = new WidgetConfiguration(); config.Accounts.Add(new AccountConfiguration { Id = "one", GoogleSubject = "subject-one", TargetCalendarId = "calendar-one" }); config.DisplayAccountId = "one";

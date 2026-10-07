@@ -63,7 +63,17 @@
         </StackPanel>
       </Grid>
       <Border x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceAlt}" CornerRadius="10" Padding="10" Margin="0,0,0,10">
-        <StackPanel>
+        <ScrollViewer MaxHeight="170" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+          <TextBlock Text="일정 이름 또는 QA 상태 검색 (Ctrl+F)" Margin="0,0,0,4"/>
+          <TextBox x:Name="SearchBox" Height="30" Padding="6,4" AutomationProperties.Name="일정 이름 또는 QA 상태 검색"/>
+          <ComboBox x:Name="QaFilterSelect" Height="30" Margin="0,6,0,0" AutomationProperties.Name="QA 상태 필터">
+            <ComboBoxItem Tag="all" Content="QA 전체"/><ComboBoxItem Tag="recorded" Content="QA 기록 있음"/><ComboBoxItem Tag="empty" Content="QA 미기록"/>
+            <ComboBoxItem Tag="pending" Content="PC 보류"/><ComboBoxItem Tag="conflict" Content="충돌"/>
+          </ComboBox>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <DatePicker x:Name="JumpDate" Width="145" AutomationProperties.Name="이동할 날짜"/>
+            <Button x:Name="JumpDateButton" Content="날짜로 이동" Margin="6,0,0,0" AutomationProperties.Name="선택 날짜로 이동"/>
+          </StackPanel>
           <TextBlock Text="표시할 캘린더" FontWeight="SemiBold" Margin="0,0,0,6"/>
           <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
             <Button x:Name="SelectAllCalendarsButton" Content="전체 선택" Margin="0,0,6,0"/>
@@ -76,10 +86,25 @@
           </ScrollViewer>
           <TextBlock Text="빠른 보기" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" Margin="0,7,0,4"/>
           <ComboBox x:Name="CalendarSelect" Height="30" DisplayMemberPath="Name" SelectedValuePath="Id" AutomationProperties.Name="캘린더 빠른 보기"/>
-        </StackPanel>
+          <TextBlock Text="보기 밀도" Margin="0,10,0,4"/>
+          <ComboBox x:Name="DensitySelect" Height="30" AutomationProperties.Name="보기 밀도">
+            <ComboBoxItem Tag="comfortable" Content="여유 있게"/><ComboBoxItem Tag="compact" Content="간결하게"/>
+          </ComboBox>
+          <TextBlock Text="보기 프리셋" Margin="0,10,0,4"/>
+          <ComboBox x:Name="PresetSelect" Height="30" DisplayMemberPath="Name" AutomationProperties.Name="저장된 보기 프리셋"/>
+          <TextBox x:Name="PresetName" Height="30" Margin="0,5,0,0" Padding="6,4" AutomationProperties.Name="보기 프리셋 이름"/>
+          <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+            <Button x:Name="SavePresetButton" Content="현재 보기 저장" AutomationProperties.Name="현재 보기 프리셋 저장"/>
+            <Button x:Name="ApplyPresetButton" Content="불러오기" Margin="5,0,0,0" AutomationProperties.Name="보기 프리셋 불러오기"/>
+            <Button x:Name="DeletePresetButton" Content="삭제" Margin="5,0,0,0" AutomationProperties.Name="보기 프리셋 삭제"/>
+          </StackPanel>
+          <Button x:Name="ConnectionDiagnosticsButton" Content="안전한 연결 진단" Margin="0,10,0,0" AutomationProperties.Name="개인정보 제외 연결 진단"/>
+          <TextBlock x:Name="ConnectionDiagnosticsText" TextWrapping="Wrap" Margin="0,5,0,0" Foreground="{DynamicResource ThemeMuted}"/>
+        </StackPanel></ScrollViewer>
       </Border>
       <ScrollViewer x:Name="EventScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
+          <StackPanel x:Name="CalendarArea">
           <Grid Margin="0,0,0,12">
             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <Button x:Name="PreviousMonthButton" Content="‹" Width="32" Background="{DynamicResource ThemeSurface}" AutomationProperties.Name="이전 달"/>
@@ -97,7 +122,7 @@
             <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate><DataTemplate>
               <Button x:Name="DayButton" Background="{Binding Background}" BorderBrush="{Binding Border}" BorderThickness="{Binding BorderSize}"
-                      Foreground="{Binding Foreground}" Margin="1" Padding="2" Height="{DynamicResource ThemeDayHeight}" ToolTip="{Binding Date}">
+                      Foreground="{Binding Foreground}" Margin="1" Padding="2" Height="{Binding DayHeight}" ToolTip="{Binding Date}">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                   <TextBlock Text="{Binding Number}" Foreground="{Binding Foreground}" FontWeight="SemiBold" TextAlignment="Center"/>
                   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,0">
@@ -110,13 +135,24 @@
               </Button>
             </DataTemplate></ItemsControl.ItemTemplate>
           </ItemsControl>
-          <StackPanel x:Name="DetailHost" Visibility="Collapsed"><TextBlock x:Name="DayHeading"/><ItemsControl x:Name="EventList"/>
+          </StackPanel>
+          <StackPanel x:Name="DetailHost" Visibility="Collapsed"><TextBlock x:Name="DayHeading" Margin="0,8,0,5" FontWeight="SemiBold"/>
+            <ItemsControl x:Name="EventList"><ItemsControl.ItemTemplate><DataTemplate>
+              <Button x:Name="SearchResultButton" HorizontalContentAlignment="Left" Margin="0,0,0,5" AutomationProperties.Name="검색된 일정 열기">
+                <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Schedule}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding PendingStatus}" Foreground="{DynamicResource ThemeMuted}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Button>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
             <Border x:Name="EmptyPanel" Visibility="Collapsed"><TextBlock x:Name="EmptyText"/></Border></StackPanel>
           <StackPanel Visibility="Collapsed"><TextBlock x:Name="ModeTitle"/><TextBlock x:Name="ModeDescription"/>
             <TextBlock x:Name="ClockText"/><TextBlock x:Name="CountText"/></StackPanel>
         </StackPanel>
       </ScrollViewer>
       <StackPanel Grid.Row="3" Margin="1,6,1,0">
+        <TextBlock x:Name="QaSummaryText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeTinySize}" TextWrapping="Wrap" Text="QA 상태: 읽은 일정 없음"/>
+        <TextBlock x:Name="SyncSummaryText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeTinySize}" TextWrapping="Wrap" Text="동기화: 아직 확인하지 않음"/>
         <Border x:Name="UpdateBanner" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceTint}" CornerRadius="7" Padding="7" Margin="0,0,0,5">
           <StackPanel><TextBlock x:Name="UpdateSummary" TextWrapping="Wrap" FontSize="{DynamicResource ThemeSmallSize}"/>
             <StackPanel Orientation="Horizontal" Margin="0,5,0,0"><Button x:Name="UpdateApplyButton" Content="업데이트 적용" AutomationProperties.Name="새 버전 적용"/>
@@ -127,7 +163,10 @@
         <Border x:Name="ChangeBanner" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceTint}" CornerRadius="7" Padding="7" Margin="0,0,0,5">
           <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <TextBlock x:Name="ChangeSummary" Foreground="{DynamicResource ThemeText}" TextWrapping="Wrap" FontSize="{DynamicResource ThemeSmallSize}"/>
-            <Button x:Name="DismissChangeButton" Grid.Column="1" Content="×" Width="25" Padding="0" AutomationProperties.Name="변경 알림 닫기"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="OpenChangeDetailsButton" Content="상세" Padding="7,0" Margin="5,0" AutomationProperties.Name="변경 상세 열기"/>
+                <Button x:Name="DismissChangeButton" Content="×" Width="25" Padding="0" AutomationProperties.Name="변경 알림 닫기"/>
+              </StackPanel>
           </Grid>
         </Border>
         <TextBlock x:Name="StatusText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" TextWrapping="Wrap" MaxHeight="38"/>

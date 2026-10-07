@@ -43,12 +43,17 @@ namespace CalendarWidget
         public bool ChangeAlertsEnabled { get; set; }
         public string ChangeAlertsPausedUntilUtc { get; set; }
         public string ReleaseFeed { get; set; }
+        public string SearchText { get; set; }
+        public string QaFilter { get; set; }
+        public string ViewDensity { get; set; }
+        public List<WidgetViewPreset> ViewPresets { get; set; }
         public WidgetConfiguration()
         {
             SelectedProfileId = "brownfarm"; Left = -1; Top = -1; Width = 360; Height = 470;
             ThemeMode = "light"; FontFamilyName = "Malgun Gothic"; DisplayFontSize = 13;
             ChangeAlertsEnabled = true;
             ReleaseFeed = UpdateCore.DefaultFeed;
+            SearchText = ""; QaFilter = "all"; ViewDensity = "comfortable"; ViewPresets = new List<WidgetViewPreset>();
             Accounts = new List<AccountConfiguration>(); VisibleFields = new Dictionary<string, List<string>>();
             SourceWorksheet = "이벤트확인";
             SourceKind = "local"; SourceDocumentId = Guid.NewGuid().ToString("N"); ExcelOptions = new ExcelReadOptions(); MicrosoftTenant = "organizations"; GoogleColorId = "";
@@ -65,6 +70,10 @@ namespace CalendarWidget
             if (data.VisibleFields == null) data.VisibleFields = new Dictionary<string, List<string>>();
             if (data.ExcelOptions == null) data.ExcelOptions = new ExcelReadOptions();
             if (data.ReleaseFeed == null) data.ReleaseFeed = UpdateCore.DefaultFeed;
+            if (data.ViewPresets == null) data.ViewPresets = new List<WidgetViewPreset>();
+            if (data.SearchText == null) data.SearchText = "";
+            if (data.QaFilter == null) data.QaFilter = "all";
+            if (data.ViewDensity != "compact" && data.ViewDensity != "comfortable") data.ViewDensity = "comfortable";
             ThemeManager.Normalize(data);
             if (String.IsNullOrWhiteSpace(data.SourceDocumentId)) data.SourceDocumentId = Guid.NewGuid().ToString("N");
             return data;
@@ -75,6 +84,17 @@ namespace CalendarWidget
             File.WriteAllText(temporary, new JavaScriptSerializer().Serialize(data));
             if (File.Exists(path)) File.Replace(temporary, path, null); else File.Move(temporary, path);
         }
+    }
+    public sealed class WidgetViewPreset
+    {
+        public string Name { get; set; }
+        public string SelectedProfileId { get; set; }
+        public List<string> VisibleCalendarKeys { get; set; }
+        public string SearchText { get; set; }
+        public string QaFilter { get; set; }
+        public string ViewDensity { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
     }
     public interface ICalendarProvider
     {

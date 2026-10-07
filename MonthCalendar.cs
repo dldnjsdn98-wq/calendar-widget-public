@@ -12,11 +12,12 @@ namespace CalendarWidget
         public DateTime Date { get; set; } public string Number { get { return Date.Day.ToString(CultureInfo.InvariantCulture); } }
         public bool InMonth { get; set; } public bool IsToday { get; set; } public bool Selected { get; set; }
         public bool Dark { get; set; }
+        public double DayHeight { get; set; }
         public Brush Background { get { return System.Windows.SystemParameters.HighContrast ? (Selected ? System.Windows.SystemColors.HighlightBrush : System.Windows.SystemColors.WindowBrush) : BrushOf(Selected ? "#6D3CCB" : Dark ? "#24222B" : "#FFFFFF"); } }
         public Brush Foreground { get { return System.Windows.SystemParameters.HighContrast ? (Selected ? System.Windows.SystemColors.HighlightTextBrush : System.Windows.SystemColors.WindowTextBrush) : BrushOf(Selected ? "#FFFFFF" : InMonth ? Dark ? "#F6F2FA" : "#262230" : Dark ? "#AEA5B8" : "#AAA4B2"); } }
         public Brush Border { get { return System.Windows.SystemParameters.HighContrast ? System.Windows.SystemColors.WindowTextBrush : BrushOf(IsToday && !Selected ? Dark ? "#C09BFF" : "#6D3CCB" : Dark ? "#62596C" : "#E8E3EF"); } }
         public int BorderSize { get { return IsToday && !Selected ? 2 : 0; } }
-        public string CountLabel { get { return EventCount == 0 ? "" : EventCount.ToString(CultureInfo.InvariantCulture); } }
+        public string CountLabel { get { return Overflow ?? ""; } }
         public int EventCount { get; set; }
         public List<MonthEventMark> Marks { get; set; }
         public string Overflow { get; set; }
@@ -33,9 +34,9 @@ namespace CalendarWidget
             for (int i = 0; i < 42; i++) {
                 var date = start.AddDays(i);
                 var matches = events.Where(e => Occurs(e, date)).OrderBy(e => CalendarRules.ParseDate(e.Start, e.AllDay)).ThenBy(e => e.Title).ToList();
-                result.Add(new MonthDay { Date = date, InMonth = date.Month == first.Month, IsToday = date == today.Date, Selected = selected.HasValue && selected.Value.Date == date, Dark = dark,
+                result.Add(new MonthDay { Date = date, InMonth = date.Month == first.Month, IsToday = date == today.Date, Selected = selected.HasValue && selected.Value.Date == date, Dark = dark, DayHeight = 44,
                     EventCount = matches.Count,
-                    Marks = matches.Take(3).Select(e => new MonthEventMark { Title = e.Title, Color = (Brush)new BrushConverter().ConvertFromString(snapshot.Calendars.Single(c => c.Id == e.CalendarId).Color) }).ToList(),
+                    Marks = matches.Take(2).Select(e => new MonthEventMark { Title = e.Title, Color = (Brush)new BrushConverter().ConvertFromString(snapshot.Calendars.Single(c => c.Id == e.CalendarId).Color) }).ToList(),
                     Overflow = matches.Count > 2 ? "+" + (matches.Count - 2).ToString(CultureInfo.InvariantCulture) : "" });
             }
             return result;

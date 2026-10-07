@@ -36,7 +36,14 @@ namespace CalendarWidget
     public sealed class CalendarChangeSummary
     {
         public int Added, Updated, Removed, Conflicts;
+        public readonly List<CalendarChangeEntry> Entries = new List<CalendarChangeEntry>();
         public int Total { get { return Added + Updated + Removed; } }
+        public void Append(CalendarChangeSummary other)
+        {
+            if (other == null) return;
+            Added += other.Added; Updated += other.Updated; Removed += other.Removed;
+            Conflicts = other.Conflicts; Entries.AddRange(other.Entries);
+        }
         public string Text { get { return "일정 변경: 추가 " + Added + " · 수정 " + Updated + " · 취소 " + Removed + (Conflicts > 0 ? " · 상태 차이 " + Conflicts : ""); } }
     }
     public sealed class CalendarChangeTracker
@@ -58,14 +65,14 @@ namespace CalendarWidget
                 if (baselines.TryGetValue(calendar.Id, out previous)) {
                     foreach (var item in current) {
                         CalendarEvent old;
-                        if (!previous.TryGetValue(item.Key, out old)) { if (!SuppressDelta(item.Key, now)) result.Added++; }
-                        else if (Fingerprint(old) != Fingerprint(item.Value) && !SuppressDelta(item.Key, now)) result.Updated++;
+                        if (!previous.TryGetValue(item.Key, out old)) { if (!SuppressDelta(item.Key, now)) { result.Added++; result.Entries.Add(CalendarChangeDetail.Create(calendar, null, item.Value, now, snapshot.Calendars.Count(c => c.Name == calendar.Name) > 1)); } }
+                        else if (Fingerprint(old) != Fingerprint(item.Value) && !SuppressDelta(item.Key, now)) { result.Updated++; result.Entries.Add(CalendarChangeDetail.Create(calendar, old, item.Value, now, snapshot.Calendars.Count(c => c.Name == calendar.Name) > 1)); }
                     }
                     foreach (var old in previous) {
                         if (current.ContainsKey(old.Key)) continue;
                         try {
                             var end = CalendarRules.ParseDate(old.Value.IsPoint ? old.Value.Start : old.Value.End, old.Value.AllDay);
-                            if (end > new DateTimeOffset(CalendarRules.Cutoff(now), TimeSpan.FromHours(9)) && !SuppressDelta(old.Key, now)) result.Removed++;
+                            if (end > new DateTimeOffset(CalendarRules.Cutoff(now), TimeSpan.FromHours(9)) && !SuppressDelta(old.Key, now)) { result.Removed++; result.Entries.Add(CalendarChangeDetail.Create(calendar, old.Value, null, now, snapshot.Calendars.Count(c => c.Name == calendar.Name) > 1)); }
                         } catch { }
                     }
                 }

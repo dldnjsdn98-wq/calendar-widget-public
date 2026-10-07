@@ -41,6 +41,7 @@ namespace CalendarWidget
             Widget widget = null;
             try
             {
+                Check("os_default_tls_enabled", System.Net.ServicePointManager.SecurityProtocol == (System.Net.SecurityProtocolType)0);
                 var source = new LocalSampleSource(Path.Combine(root, "sample-data.json"));
                 var data = source.Load();
                 var now = DateTimeOffset.Parse("2026-10-02T15:00:00+09:00", CultureInfo.InvariantCulture);
@@ -217,8 +218,10 @@ namespace CalendarWidget
                             Check("manual_editor_dark_text_distinct_from_background", darkManual.Window.FontSize == 18 && !darkManual.Find<TextBox>("ManualTitle").Foreground.ToString().Equals(darkManual.Find<TextBox>("ManualTitle").Background.ToString(), StringComparison.OrdinalIgnoreCase));
                             Capture(darkManual.Window, Path.Combine(output, "manual-dark-large-200.png"), 192); darkManual.Window.Close();
                             StatusVerification.RunUi(widget, output, Check, Capture);
+                            StatusHotfixVerification.RunUi(widget, output, Check, Capture);
                             CalendarChangeWatchVerification.RunUi(widget, output, Check, Capture);
                             UpdateVerification.RunUi(widget, output, Check, Capture);
+                            WidgetViewVerification.RunUi(widget, output, Check, Capture);
                             widget.Configuration.ThemeMode = previousTheme; widget.Configuration.FontFamilyName = previousFont; widget.Configuration.DisplayFontSize = previousSize;
                             ThemeManager.Apply(widget.Window, widget.Configuration); widget.Render();
                             widget.Source = new LocalSampleSource(Path.Combine(output, "malformed.json")); widget.Reload();
