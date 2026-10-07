@@ -1,0 +1,81 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="날짜 일정" Width="380" Height="440" MinWidth="320" MinHeight="290"
+        WindowStyle="None" ResizeMode="CanResize" ShowInTaskbar="False"
+        Background="{DynamicResource ThemeSurface}" Foreground="{DynamicResource ThemeText}" FontFamily="Malgun Gothic" FontSize="{DynamicResource ThemeFontSize}"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <Style TargetType="Button">
+      <Setter Property="Foreground" Value="{DynamicResource ThemeText}"/><Setter Property="Background" Value="{DynamicResource ThemeSurfaceTint}"/>
+      <Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="9,7"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/><Setter TargetName="Surface" Property="BorderThickness" Value="1"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/><Setter TargetName="Surface" Property="BorderThickness" Value="2"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+  </Window.Resources>
+  <Border BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="16">
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid x:Name="PopupHeader" Margin="0,0,0,12" Background="Transparent">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock x:Name="PopupDate" FontSize="{DynamicResource ThemeHeadingSize}" FontWeight="SemiBold" Foreground="{DynamicResource ThemeText}"/>
+          <TextBlock x:Name="PopupCount" FontSize="{DynamicResource ThemeSmallSize}" Foreground="{DynamicResource ThemeMuted}" Margin="0,4,0,0"/>
+        </StackPanel>
+        <Button x:Name="PopupCloseButton" Grid.Column="1" Content="×" Width="30" Height="30" ToolTip="닫기" AutomationProperties.Name="날짜 팝업 닫기"/>
+      </Grid>
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+          <Button x:Name="PopupAddEventButton" Content="+ 일정" Foreground="{DynamicResource ThemeAccentText}" Background="{DynamicResource ThemeAccent}"
+                  ToolTip="이 날짜에 Google 일정 추가" AutomationProperties.Name="이 날짜에 일정 추가" HorizontalAlignment="Right" Margin="0,0,0,10"/>
+          <TextBlock x:Name="EmptyDayText" Text="이 날짜에는 일정이 없습니다." Visibility="Collapsed" Foreground="{DynamicResource ThemeMuted}" Margin="0,10"/>
+          <ListBox x:Name="AgendaList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource ThemeText}" MaxHeight="195" AutomationProperties.Name="날짜 일정 목록">
+            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+              <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,5"/>
+              <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
+                <Border x:Name="ItemSurface" Background="{DynamicResource ThemeSurfaceAlt}" BorderBrush="Transparent" BorderThickness="1" CornerRadius="9" Padding="10">
+                  <ContentPresenter/>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsSelected" Value="True"><Setter TargetName="ItemSurface" Property="Background" Value="{DynamicResource ThemeSurfaceTint}"/><Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/></Trigger>
+                  <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="ItemSurface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/></Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate></Setter.Value></Setter>
+            </Style></ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate><DataTemplate>
+              <StackPanel>
+                <StackPanel Orientation="Horizontal"><Ellipse Width="7" Height="7" Fill="{Binding Color}" Margin="0,0,7,0"/>
+                  <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{DynamicResource ThemeText}"/></StackPanel>
+                <TextBlock Text="{Binding Schedule}" FontSize="{DynamicResource ThemeSmallSize}" Foreground="{DynamicResource ThemeMuted}" Margin="14,4,0,0" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding CalendarName}" FontSize="{DynamicResource ThemeSmallSize}" Foreground="{DynamicResource ThemeMuted}" Margin="14,2,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding CalendarName}"/>
+              </StackPanel>
+            </DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <Border x:Name="EventDetail" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceAlt}" CornerRadius="9" Padding="12" Margin="0,10,0,0">
+            <StackPanel>
+              <TextBlock x:Name="DetailTitle" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock x:Name="DetailSchedule" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" Margin="0,5,0,0" TextWrapping="Wrap"/>
+              <ItemsControl x:Name="DetailFields" Margin="0,9,0,0"><ItemsControl.ItemTemplate><DataTemplate>
+                <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding Label}" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" TextWrapping="Wrap"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" Foreground="{DynamicResource ThemeText}" FontSize="{DynamicResource ThemeSmallSize}" TextWrapping="Wrap"/>
+                </Grid>
+              </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+              <TextBlock x:Name="NativeCalendarNotice" Visibility="Collapsed" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" Margin="0,9,0,0" TextWrapping="Wrap"/>
+              <Button x:Name="PopupEditStatusButton" Content="상태 편집" HorizontalAlignment="Right" Margin="0,10,0,0" AutomationProperties.Name="상태 편집"/>
+              <TextBlock x:Name="DetailPending" Foreground="{DynamicResource ThemeAccentOutline}" FontSize="{DynamicResource ThemeSmallSize}" Margin="0,7,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</Window>

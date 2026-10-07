@@ -1,0 +1,138 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="캘린더" Width="360" Height="470" MinWidth="320" MinHeight="395"
+        WindowStyle="None" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False"
+        Background="{DynamicResource ThemeSurfaceAlt}" Foreground="{DynamicResource ThemeText}" FontFamily="Malgun Gothic" FontSize="{DynamicResource ThemeFontSize}"
+        UseLayoutRounding="True" SnapsToDevicePixels="True" ShowActivated="False">
+  <Window.Resources>
+  <ControlTemplate x:Key="ThemeComboTemplate" TargetType="ComboBox">
+   <Grid MinHeight="30">
+    <Border x:Name="Outline" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="5"/>
+    <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" IsHitTestVisible="False" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="8,2,28,2"/>
+    <ToggleButton x:Name="DropToggle" Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press"><ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent"/></ControlTemplate></ToggleButton.Template></ToggleButton>
+    <Path Data="M 0 0 L 4 4 L 8 0" Stroke="{DynamicResource ThemeText}" StrokeThickness="1.5" Width="8" Height="5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False"/>
+    <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+     <Border Width="{Binding PlacementTarget.ActualWidth, ElementName=PART_Popup}" MaxHeight="{TemplateBinding MaxDropDownHeight}" Background="{DynamicResource ThemeSurface}" BorderBrush="{DynamicResource ThemeInputBorder}" BorderThickness="1" Padding="2"><ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto"><ItemsPresenter/></ScrollViewer></Border>
+    </Popup>
+   </Grid>
+   <ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource ThemeAccentOutline}"/><Setter TargetName="Outline" Property="BorderThickness" Value="2"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.65"/></Trigger></ControlTemplate.Triggers>
+  </ControlTemplate>
+
+    <Style TargetType="Button">
+      <Setter Property="Foreground" Value="{DynamicResource ThemeText}"/><Setter Property="Background" Value="{DynamicResource ThemeSurfaceTint}"/>
+      <Setter Property="BorderBrush" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="8,6"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/><Setter TargetName="Surface" Property="BorderThickness" Value="1"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/><Setter TargetName="Surface" Property="BorderThickness" Value="2"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.55"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource ThemeText}"/><Setter Property="Margin" Value="0,4"/>
+    </Style>
+    <Style TargetType="ComboBox"><Setter Property="Template" Value="{StaticResource ThemeComboTemplate}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ThemeText}"/><Setter Property="Background" Value="{DynamicResource ThemeSurface}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ThemeInputBorder}"/>
+      <Setter Property="ItemContainerStyle"><Setter.Value><Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{DynamicResource ThemeText}"/><Setter Property="Background" Value="{DynamicResource ThemeSurface}"/>
+        <Style.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter Property="Background" Value="{DynamicResource ThemeSurfaceTint}"/><Setter Property="Foreground" Value="{DynamicResource ThemeText}"/></Trigger><Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource ThemeSurfaceTint}"/><Setter Property="Foreground" Value="{DynamicResource ThemeText}"/></Trigger></Style.Triggers>
+      </Style></Setter.Value></Setter>
+    </Style>
+  </Window.Resources>
+  <Border Background="{DynamicResource ThemeSurface}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="12">
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <Grid x:Name="DragHeader" Background="Transparent" Margin="0,0,0,12">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Button x:Name="AddEventButton" Content="+ 일정" Foreground="{DynamicResource ThemeAccentText}" Background="{DynamicResource ThemeAccent}" Padding="7,6"
+                HorizontalAlignment="Left" ToolTip="Google 일정 추가" AutomationProperties.Name="일정 추가"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="FilterButton" Content="캘린더" Padding="5,6" ToolTip="표시할 캘린더 선택" AutomationProperties.Name="캘린더 선택" Margin="0,0,2,0"/>
+          <Button x:Name="RefreshButton" Content="↻" Width="26" Padding="0" ToolTip="일정 다시 읽기" AutomationProperties.Name="새로고침" Margin="0,0,2,0"/>
+          <Button x:Name="SettingsButton" Content="⚙" Width="26" Padding="0" ToolTip="설정" AutomationProperties.Name="설정" Margin="0,0,2,0"/>
+          <Button x:Name="PinButton" Content="⌃" Width="26" Padding="0" ToolTip="항상 위" AutomationProperties.Name="항상 위" Margin="0,0,2,0"/>
+          <Button x:Name="HideButton" Content="—" Width="26" Padding="0" ToolTip="트레이로 숨기기" AutomationProperties.Name="트레이로 숨기기" Margin="0,0,2,0"/>
+          <Button x:Name="CloseButton" Content="×" Width="26" Padding="0" ToolTip="종료" AutomationProperties.Name="앱 종료"/>
+        </StackPanel>
+      </Grid>
+      <Border x:Name="FilterPane" Grid.Row="1" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceAlt}" CornerRadius="10" Padding="10" Margin="0,0,0,10">
+        <StackPanel>
+          <TextBlock Text="표시할 캘린더" FontWeight="SemiBold" Margin="0,0,0,6"/>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <Button x:Name="SelectAllCalendarsButton" Content="전체 선택" Margin="0,0,6,0"/>
+            <Button x:Name="ClearCalendarsButton" Content="전체 해제"/>
+          </StackPanel>
+          <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="CalendarChoices"><ItemsControl.ItemTemplate><DataTemplate>
+              <CheckBox x:Name="CalendarChoiceCheck" Content="{Binding Name}" IsChecked="{Binding IsSelected, Mode=TwoWay}" ToolTip="{Binding Name}"/>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+          </ScrollViewer>
+          <TextBlock Text="빠른 보기" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" Margin="0,7,0,4"/>
+          <ComboBox x:Name="CalendarSelect" Height="30" DisplayMemberPath="Name" SelectedValuePath="Id" AutomationProperties.Name="캘린더 빠른 보기"/>
+        </StackPanel>
+      </Border>
+      <ScrollViewer x:Name="EventScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Button x:Name="PreviousMonthButton" Content="‹" Width="32" Background="{DynamicResource ThemeSurface}" AutomationProperties.Name="이전 달"/>
+            <TextBlock x:Name="MonthTitle" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="{DynamicResource ThemeHeadingSize}" FontWeight="SemiBold"/>
+            <Button x:Name="TodayButton" Grid.Column="2" Content="오늘" Background="{DynamicResource ThemeSurface}" Margin="0,0,4,0" AutomationProperties.Name="오늘 날짜"/>
+            <Button x:Name="NextMonthButton" Grid.Column="3" Content="›" Width="32" Background="{DynamicResource ThemeSurface}" AutomationProperties.Name="다음 달"/>
+          </Grid>
+          <UniformGrid Columns="7" Margin="0,0,0,4" Height="22">
+            <TextBlock Text="일" TextAlignment="Center" Foreground="{DynamicResource ThemeSunday}"/><TextBlock Text="월" TextAlignment="Center" Foreground="{DynamicResource ThemeMuted}"/>
+            <TextBlock Text="화" TextAlignment="Center" Foreground="{DynamicResource ThemeMuted}"/><TextBlock Text="수" TextAlignment="Center" Foreground="{DynamicResource ThemeMuted}"/>
+            <TextBlock Text="목" TextAlignment="Center" Foreground="{DynamicResource ThemeMuted}"/><TextBlock Text="금" TextAlignment="Center" Foreground="{DynamicResource ThemeMuted}"/>
+            <TextBlock Text="토" TextAlignment="Center" Foreground="{DynamicResource ThemeSaturday}"/>
+          </UniformGrid>
+          <ItemsControl x:Name="MonthDays">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate><DataTemplate>
+              <Button x:Name="DayButton" Background="{Binding Background}" BorderBrush="{Binding Border}" BorderThickness="{Binding BorderSize}"
+                      Foreground="{Binding Foreground}" Margin="1" Padding="2" Height="{DynamicResource ThemeDayHeight}" ToolTip="{Binding Date}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Number}" Foreground="{Binding Foreground}" FontWeight="SemiBold" TextAlignment="Center"/>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,3,0,0">
+                    <ItemsControl ItemsSource="{Binding Marks}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="5" Height="5" Fill="{Binding Color}" Margin="0,0,2,0" ToolTip="{Binding Title}"/></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding CountLabel}" FontSize="{DynamicResource ThemeTinySize}" Foreground="{Binding Foreground}" Margin="1,0,0,0"/>
+                  </StackPanel>
+                </StackPanel>
+              </Button>
+            </DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel x:Name="DetailHost" Visibility="Collapsed"><TextBlock x:Name="DayHeading"/><ItemsControl x:Name="EventList"/>
+            <Border x:Name="EmptyPanel" Visibility="Collapsed"><TextBlock x:Name="EmptyText"/></Border></StackPanel>
+          <StackPanel Visibility="Collapsed"><TextBlock x:Name="ModeTitle"/><TextBlock x:Name="ModeDescription"/>
+            <TextBlock x:Name="ClockText"/><TextBlock x:Name="CountText"/></StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <StackPanel Grid.Row="3" Margin="1,6,1,0">
+        <Border x:Name="UpdateBanner" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceTint}" CornerRadius="7" Padding="7" Margin="0,0,0,5">
+          <StackPanel><TextBlock x:Name="UpdateSummary" TextWrapping="Wrap" FontSize="{DynamicResource ThemeSmallSize}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,5,0,0"><Button x:Name="UpdateApplyButton" Content="업데이트 적용" AutomationProperties.Name="새 버전 적용"/>
+              <Button x:Name="UpdateDismissButton" Content="나중에" Margin="5,0,0,0" AutomationProperties.Name="업데이트 알림 닫기"/></StackPanel>
+          </StackPanel>
+        </Border>
+        <TextBlock x:Name="VersionText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeTinySize}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+        <Border x:Name="ChangeBanner" Visibility="Collapsed" Background="{DynamicResource ThemeSurfaceTint}" CornerRadius="7" Padding="7" Margin="0,0,0,5">
+          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock x:Name="ChangeSummary" Foreground="{DynamicResource ThemeText}" TextWrapping="Wrap" FontSize="{DynamicResource ThemeSmallSize}"/>
+            <Button x:Name="DismissChangeButton" Grid.Column="1" Content="×" Width="25" Padding="0" AutomationProperties.Name="변경 알림 닫기"/>
+          </Grid>
+        </Border>
+        <TextBlock x:Name="StatusText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeSmallSize}" TextWrapping="Wrap" MaxHeight="38"/>
+        <TextBlock x:Name="LastSuccessText" Foreground="{DynamicResource ThemeMuted}" FontSize="{DynamicResource ThemeTinySize}" TextWrapping="Wrap" Text="서버 확인: 아직 없음"/>
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>

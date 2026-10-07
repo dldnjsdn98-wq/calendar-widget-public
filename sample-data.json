@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "mode": "sample",
+  "timeZone": "Asia/Seoul",
+  "calendars": [
+    {
+      "id": "brownfarm",
+      "name": "브라운팜",
+      "color": "#9569D5",
+      "fields": [
+        { "key": "setup", "label": "세팅" },
+        { "key": "check", "label": "확인" },
+        { "key": "alphaTester", "label": "알파와 테스터" },
+        { "key": "realTester", "label": "리얼과 테스터" }
+      ]
+    },
+    {
+      "id": "personal",
+      "name": "개인 일정",
+      "color": "#3FA9A1",
+      "fields": [ { "key": "location", "label": "장소" } ]
+    }
+  ],
+  "events": [
+    {
+      "id": "bf-harvest-demo", "calendarId": "brownfarm", "title": "가을 수확 이벤트",
+      "start": "2026-10-02T11:00:00+09:00", "end": "2026-10-05T11:00:00+09:00", "allDay": false,
+      "fields": { "setup": "완료 (샘플)", "check": "확인 대기", "alphaTester": "알파 A · 테스터 1", "realTester": "리얼 B · 테스터 2" }
+    },
+    {
+      "id": "bf-market-demo", "calendarId": "brownfarm", "title": "주말 농장 마켓",
+      "start": "2026-10-03T11:00:00+09:00", "end": "2026-10-06T11:00:00+09:00", "allDay": false,
+      "fields": { "setup": "10.03 09:00 예정", "check": "미확인", "alphaTester": "배정 예정", "realTester": "배정 예정" }
+    },
+    {
+      "id": "bf-festival-demo", "calendarId": "brownfarm", "title": "농장 축제",
+      "start": "2026-10-09", "end": "2026-10-12", "allDay": true,
+      "fields": { "setup": "준비 중", "check": "일정 확인", "alphaTester": "알파 C · 테스터 3", "realTester": "미정" }
+    },
+    {
+      "id": "personal-demo", "calendarId": "personal", "title": "주간 계획 정리",
+      "start": "2026-10-04T10:00:00+09:00", "end": "2026-10-04T10:30:00+09:00", "allDay": false,
+      "fields": { "location": "책상 앞 (샘플)" }
+    }
+  ]
+}
